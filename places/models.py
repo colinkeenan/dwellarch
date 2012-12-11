@@ -30,3 +30,8 @@ class Building(models.Model):
     roof cover = models.CharField(max_length=16, blank=True)
     foundation = models.CharField(max_length=16, blank=True)
     elevator = models.CharField(max_length=16, blank=True)
+
+class BuildingName(models.Model):
+    building = models.ForeignKey(Building)
+    date = models.DateField('name-assignment date')
+    name = models.CharField('building name', max_length=64)
