@@ -6,16 +6,28 @@ from django_localflavor_us.forms import USPhoneNumberField, USPSSelect, USSocial
 from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # two-letter postal codes: state/territory/country
 from django.db import models
 
-class LandTransfers(models.Model):
-    owner = models.ForeignKey(Owner)
-    land = models.ForeignKey(places.Land)
-    date = models.DateField('sale date')
-    price = models.DecimalField('sale price', max_digits=14, 
-            decimal_places=2)
+class Prop(models.Model):
+    land = models.OneToOneField(places.Land, 
+            null=True, blank=True, default=None)
+    building = models.OneToOneField(places.Building, 
+            null=True, blank=True, default=None)
+    assert bool(land) ^ bool(building) # a prop is either a land or a building, but not both
+
+    def owners(self, date):
+        """returns a list of this propertie's owners on 'date'"""
+        relevant_date = self.prop_transfers_set.filter(date__lte=date).latest('date').date
+        return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
 class Owner(models.Model):
     birth = models.ForeignKey(people.Birth)
-    lands = models.ManyToManyField(places.Land, through='LandTransfers')
+    props = models.ManyToManyField(Prop, through='PropTransfers')
+
+class PropTransfers(models.Model):
+    owner = models.ForeignKey(Owner)
+    prop = models.ForeignKey(Prop)
+    date = models.DateField('sale date')
+    price = models.DecimalField('sale price', max_digits=14, 
+            decimal_places=2)
 
 class OccupantTransfers(models.Model):
     unit = models.ForeignKey(Unit)
@@ -24,14 +36,24 @@ class OccupantTransfers(models.Model):
     date = models.DateField('rental date', help_text='If nobody lives here, \
             enter the date that this unit became vacant.')
 
+    def landlords(self):
+        """Returns a list of landlords for the unit on the rental date.
+        Usually, there will be just one or two landlords in the list."""
+        return self.unit.landlords(self.date)
+
 class Unit(models.Model):
-    building = models.ForeignKey(places.Building)
-    number = models.CharField('unit number or name', help_text='examples: 1A \
+    prop = models.ForeignKey(Prop)
+    number = models.CharField('unit number or name', help_text='examples: Apt 1A \
             or Front Bedroom. Leave blank if the entire building is one dwelling \
             unit, such as a single-family home.', 
             max_length=32, blank=True)
     births = models.ManyToManyField(people.Birth, through='OccupantTransfers', 
             null=True, blank=True, default=None) # occupants or lessors
+
+    def landlords(self, date):
+        """For 'date', returns a list of owners of the unit's prop (property)
+        Usually, there will be just one or two owners in the list."""
+        return self.prop.owners(date):
 
 class UnitRate(models.Model):
     unit = models.ForeignKey(Unit)
