@@ -5,7 +5,8 @@ from django_localflavor_us.forms import USPhoneNumberField, USPSSelect, USSocial
 from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # two-letter postal codes: state/territory/country
 from django.db import models
 
-class Land(models.Model):
+class Estate(models.Model):
+    """ An estate is just the land. Each estate can only have one address """
     tax_parcel_number = models.CharField(max_length=64, blank=True)
     tax_property_description = models.CharField(max_length=64, blank=True)
     address = models.CharField(max_length=64)
@@ -14,7 +15,7 @@ class Land(models.Model):
     zip_code = models.CharField(max_length=10)
 
 class Building(models.Model):
-    land = models.ForeignKey(Land)
+    estate = models.ForeignKey(Estate)
     date = models.DateField('date of construction')
     building_area = models.CharField(max_length=16, blank=True)
     bedrooms = models.IntegerField(blank=True)

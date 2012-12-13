@@ -7,11 +7,36 @@ from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # t
 from django.db import models
 
 class Prop(models.Model):
-    land = models.OneToOneField(places.Land, 
+    """Prop is short for property and should always have owners.
+    The default owner will be 'Not determined yet.' so that
+    users can enter new properties for the purpose of entering
+    addresses even if they can't determine the owner.
+
+    A prop is either an estate or a building, but not both. 
+    
+    If an estate and it's buildings all have the same owners, props and owners 
+    should be specified for the estate only, not the buildings."""
+
+    estate = models.OneToOneField(places.Estate, 
             null=True, blank=True, default=None)
     building = models.OneToOneField(places.Building, 
             null=True, blank=True, default=None)
-    assert bool(land) ^ bool(building) # a prop is either a land or a building, but not both
+    assert bool(estate) ^ bool(building) #one and only one should be given
+
+    def land(self):
+        return self.estate or self.building.estate
+
+    def address(self):
+        return self.land().address
+
+    def city(self):
+        return self.land().city
+
+    def state(self):
+        return self.land().state
+
+    def zip_code(self):
+        return self.land().zip_code
 
     def owners(self, date):
         """returns a list of this propertie's owners on 'date'"""
@@ -19,8 +44,29 @@ class Prop(models.Model):
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
 class Owner(models.Model):
+    """The first owner needs to be the first birth and be named 'Not determined yet.'
+    so that users can enter addresses even if they can't determine the owner"""
     birth = models.ForeignKey(people.Birth)
     props = models.ManyToManyField(Prop, through='PropTransfers')
+
+    def full_address(self):
+        """Returns a dictionary of this owner's personal street address, unit, city, 
+        state, and zip, and comes from the latest OccupantTransfers that matches the 
+        owner's birth foreign key, where the unit can be a whole house and an occupant 
+        can be an owner. 
+        Any non-owners living there are tenants even if they don't pay anything 
+        and are handled by Tenant(models.Model). It is not assumed that the
+        owner lives on his own property though. An owner can also be a tenant."""
+        return self.birth.occupant_transfers_set.latest('date').full_address()
+
+class Tenant(models.Model): # everone in the database is either an owner or a tenant
+    birth = models.ForeignKey(people.Birth)
+    
+    def full_address(self):
+        """Returns a dictionary of this tenant's personal street address, unit, city, 
+        state, and zip, and comes from the latest OccupantTransfers that matches the 
+        birth foreign key."""
+        return self.birth.occupant_transfers_set.latest('date').full_address()
 
 class PropTransfers(models.Model):
     owner = models.ForeignKey(Owner)
@@ -36,6 +82,10 @@ class OccupantTransfers(models.Model):
     date = models.DateField('rental date', help_text='If nobody lives here, \
             enter the date that this unit became vacant.')
 
+    def full_address(self):
+        """Returns a dictionary of street address, unit, city, state, and zip"""
+        return self.unit.full_address()
+
     def landlords(self):
         """Returns a list of landlords for the unit on the rental date.
         Usually, there will be just one or two landlords in the list."""
@@ -44,11 +94,22 @@ class OccupantTransfers(models.Model):
 class Unit(models.Model):
     prop = models.ForeignKey(Prop)
     number = models.CharField('unit number or name', help_text='examples: Apt 1A \
-            or Front Bedroom. Leave blank if the entire building is one dwelling \
-            unit, such as a single-family home.', 
+            or Front Bedroom. Leave blank if the entire property is one dwelling \
+            unit, such as a single-family home. If there are multiple buildings \
+            with dwelling units in each and all the buildings are on land with \
+            the same address, then this unit number or name must be unique and so \
+            should contain the building name or number.', 
             max_length=32, blank=True)
     births = models.ManyToManyField(people.Birth, through='OccupantTransfers', 
             null=True, blank=True, default=None) # occupants or lessors
+
+    def full_address(self):
+        """Returns a dictionary of street address, unit number, city, state, zip"""
+        address = self.prop.address()
+        city = self.prop.city()
+        state = self.prop.state()
+        zip_code = self.prop.zip_code()
+        return {'address':address, 'unit':self.number, 'city':city, 'state':state, 'zip_code':zip_code}
 
     def landlords(self, date):
         """For 'date', returns a list of owners of the unit's prop (property)
@@ -86,3 +147,4 @@ class UnitRate(models.Model):
             month', 'By Noon every Monday', 'Every December 31'", max_length=32)
     rent_info = models.CharField(help_text='Enter any additional relevant \
             information about the rent.', max_length=64)
+
