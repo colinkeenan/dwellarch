@@ -40,7 +40,7 @@ class Prop(models.Model):
 
     def owners(self, date):
         """returns a list of this propertie's owners on 'date'"""
-        relevant_date = self.prop_transfers_set.filter(date__lte=date).latest('date').date
+        relevant_date = self.prop_transfers_set.filter(date__lte=date).latest().date
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
 class Occupant(models.Model): # everone in the database is an occupant
@@ -52,13 +52,13 @@ class Occupant(models.Model): # everone in the database is an occupant
         """Returns a dictionary of this occupant's personal street address, unit, city, 
         state, and zip, and comes from the latest OccupantTransfers that matches the 
         birth foreign key."""
-        return self.birth.occupant_transfers_set.latest('date').full_address()
+        return self.occupant_transfers_set.latest().full_address()
 
 class Owner(models.Model):
     """The first owner in the database needs to be the first occupant in the database
     and be named 'Not determined yet.' so that users can enter addresses even if they
     can't determine the owner"""
-    birth = models.ForeignKey(people.Birth)
+    occupant = models.ForeignKey(Occupant) #this owner: everyone is an occupant somewhere
     props = models.ManyToManyField(Prop, through='PropTransfers')
 
 class PropTransfers(models.Model):
@@ -67,6 +67,10 @@ class PropTransfers(models.Model):
     date = models.DateField('sale date')
     price = models.DecimalField('sale price', max_digits=14, 
             decimal_places=2)
+
+    class Meta: 
+        get_latest_by = 'date'
+        ordering = ['-date'] #lists of prop transfers are ordered current first 
 
 class OccupantTransfers(models.Model):
     unit = models.ForeignKey(Unit)
@@ -83,6 +87,10 @@ class OccupantTransfers(models.Model):
         """Returns a list of landlords for the unit on the rental date.
         Usually, there will be just one or two landlords in the list."""
         return self.unit.landlords(self.date)
+
+    class Meta: 
+        get_latest_by = 'date'
+        ordering = ['-date'] #lists of occupant transfers are ordered current first 
 
 class Unit(models.Model):
     prop = models.ForeignKey(Prop)
