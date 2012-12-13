@@ -43,30 +43,23 @@ class Prop(models.Model):
         relevant_date = self.prop_transfers_set.filter(date__lte=date).latest('date').date
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
-class Owner(models.Model):
-    """The first owner needs to be the first birth and be named 'Not determined yet.'
-    so that users can enter addresses even if they can't determine the owner"""
+class Occupant(models.Model): # everone in the database is an occupant
     birth = models.ForeignKey(people.Birth)
-    props = models.ManyToManyField(Prop, through='PropTransfers')
-
-    def full_address(self):
-        """Returns a dictionary of this owner's personal street address, unit, city, 
-        state, and zip, and comes from the latest OccupantTransfers that matches the 
-        owner's birth foreign key, where the unit can be a whole house and an occupant 
-        can be an owner. 
-        Any non-owners living there are tenants even if they don't pay anything 
-        and are handled by Tenant(models.Model). It is not assumed that the
-        owner lives on his own property though. An owner can also be a tenant."""
-        return self.birth.occupant_transfers_set.latest('date').full_address()
-
-class Tenant(models.Model): # everone in the database is either an owner or a tenant
-    birth = models.ForeignKey(people.Birth)
+    units = models.ManyToManyField(Unit, through='OccupantTransfers', 
+            null=True, blank=True, default=None) # history of dwellings for this occupant
     
     def full_address(self):
-        """Returns a dictionary of this tenant's personal street address, unit, city, 
+        """Returns a dictionary of this occupant's personal street address, unit, city, 
         state, and zip, and comes from the latest OccupantTransfers that matches the 
         birth foreign key."""
         return self.birth.occupant_transfers_set.latest('date').full_address()
+
+class Owner(models.Model):
+    """The first owner in the database needs to be the first occupant in the database
+    and be named 'Not determined yet.' so that users can enter addresses even if they
+    can't determine the owner"""
+    birth = models.ForeignKey(people.Birth)
+    props = models.ManyToManyField(Prop, through='PropTransfers')
 
 class PropTransfers(models.Model):
     owner = models.ForeignKey(Owner)
@@ -77,8 +70,8 @@ class PropTransfers(models.Model):
 
 class OccupantTransfers(models.Model):
     unit = models.ForeignKey(Unit)
-    birth = models.ForeignKey(people.Birth, help_text='Choose an Occupant or \
-            Lessor. Leave blank if vacant.', null=True, blank=True, default=None)
+    occupant = models.ForeignKey(Occupant, help_text='Choose an occupant. \
+            Leave blank if vacant.', null=True, blank=True, default=None)
     date = models.DateField('rental date', help_text='If nobody lives here, \
             enter the date that this unit became vacant.')
 
@@ -100,8 +93,6 @@ class Unit(models.Model):
             the same address, then this unit number or name must be unique and so \
             should contain the building name or number.', 
             max_length=32, blank=True)
-    births = models.ManyToManyField(people.Birth, through='OccupantTransfers', 
-            null=True, blank=True, default=None) # occupants or lessors
 
     def full_address(self):
         """Returns a dictionary of street address, unit number, city, state, zip"""
