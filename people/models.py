@@ -129,11 +129,11 @@ class IdDoc(models.Model):
 class Phone(models.Model):
     birth = models.ForeignKey(Birth)
     start_date = models.DateField('service start date', help_text=
-            'Enter date this phone number went into service with this carrier. \
-                    Leave blank if that date cannot be determined.', 
+            'Enter date this phone number went into service for this person \
+                    with this carrier. Leave blank if that date cannot be determined.', 
                     blank=True, null=True, default=None)
     end_date = models.DateField('service end date', help_text=
-            'Enter date service for this phone number ended with this carrier. \
+            'Enter date this phone number for this person ended with this carrier. \
                     Leave blank if that date cannot be determined.', 
                     blank=True, null=True, default=None)
     valid_date = models.DateField(help_text='Enter a date when this phone \
