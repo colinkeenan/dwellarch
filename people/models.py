@@ -146,6 +146,17 @@ class Phone(models.Model):
                     (contract/prepaid/landline/voip/virtual). \
                     Leave blank if both provider and type cannot be determined.", 
                     blank=True, max_length=64)
+    private = models.BooleanField(help_text='If marked as private, this phone \
+            number will not be visible to other users of the database unless \
+            given on a form like a rental applicaton. Anyone owning rental \
+            units may gain access to any rental application in the database.')
+    belongs = models.NullBooleanField('belongs to this person', help_text='Does/did this \
+            phone number belong to this person? Should be checked if a service start date \
+            was entered.')
+    assert belongs==True if bool(start_date), "Since there's a date for this phone number \
+            going into service for this person, you must check off the box showing this \
+            phone number does/did belong to this person. If this phone number never \
+                    really belonged to this person, delete the service start date."
 
 class Email(models.Model):
     birth = models.ForeignKey(Birth)

@@ -21,7 +21,8 @@ class Prop(models.Model):
             null=True, blank=True, default=None)
     building = models.OneToOneField(places.Building, 
             null=True, blank=True, default=None)
-    assert bool(estate) ^ bool(building) #one and only one should be given
+    assert bool(estate) ^ bool(building), "Either an estate or a building must \
+            be chosen, but not both."
 
     def land(self):
         return self.estate or self.building.estate
