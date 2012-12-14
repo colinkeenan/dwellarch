@@ -37,16 +37,23 @@ class Name(models.Model):
     class Meta:
         abstract = True
         get_latest_by = 'date'
-        ordering = ['-date'] # history of names for a person, current first 
+        ordering = ['-date'] # history of names for a person are returned current first 
 
 class Birth(Name):
     # name fields and the birthdate as Birth#date is inherited from Name()
     social_security_num = models.CharField(max_length=11, blank=True)
 
 class Nick(models.Model):
+    """A person should only have one nickname at a time and then only as an easy
+    way for people to refer to them. A person never pretends that their nickname
+    is their real name: that would be an alias. See isAlias method of NameChange."""
     birth = models.ForeignKey(Birth)
-    date = models.DateField('date began using this nickname')
-    name = models.CharField('nickname', max_length=32)
+    date = models.DateField('date began using this nickname', help_text='Enter the \
+            date this nickname started to be used. If stopped using the previous \
+            one, enter the date no longer used and leave the nickname blank.')
+    name = models.CharField('nickname', help_text='Enter new nickname. If stopped \
+            using the previous nickname, indicate by leaving this blank.', 
+            max_length=32, blank=True)
 
 class NameChange(Name):
     # inherits name fields and the NameChange#date from Name()
@@ -76,8 +83,8 @@ class NameChange(Name):
                     max_length=32, blank=True)
 
     def isAlias(self):
-        """ returns True if self hasn't been registered:
-            i.e., True if there are no NameRegistration children of self """
+        """returns True if self hasn't been registered:
+        i.e., True if there are no NameRegistration children of self """
         return not self.name_registration_set.exists()
 
 class NameRegistration(models.Model):
@@ -122,13 +129,23 @@ class IdDoc(models.Model):
 class Phone(models.Model):
     birth = models.ForeignKey(Birth)
     start_date = models.DateField('service start date', help_text=
-            'Enter date this phone number went into service with this carrier.')
+            'Enter date this phone number went into service with this carrier. \
+                    Leave blank if that date cannot be determined.', 
+                    blank=True, null=True, default=None)
     end_date = models.DateField('service end date', help_text=
-            'Enter date service for this phone number ended with this carrier.')
+            'Enter date service for this phone number ended with this carrier. \
+                    Leave blank if that date cannot be determined.', 
+                    blank=True, null=True, default=None)
+    valid_date = models.DateField(help_text='Enter a date when this phone \
+            number was a valid way to contact this person.')
+    invalid_date = models.DateField(help_text'Enter a date when this phone \
+            number was no longer a valid way to contact this person.')
     phone_number = PhoneNumberField()
     carrier = models.CharField('carrier and type', help_text=
-            "Enter phone-service provider's name and type \
-                    (contract/prepaid/landline/voip/virtual).", max_length=64)
+            "Enter phone-service provider's name and/or type \
+                    (contract/prepaid/landline/voip/virtual). \
+                    Leave blank if both provider and type cannot be determined.", 
+                    blank=True, max_length=64)
 
 class Email(models.Model):
     birth = models.ForeignKey(Birth)
