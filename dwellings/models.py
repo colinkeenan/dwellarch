@@ -45,14 +45,14 @@ class Prop(models.Model):
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
 class Occupant(models.Model): # everone in the database is an occupant
-    birth = models.ForeignKey(people.Birth)
+    person = models.ForeignKey(people.Person)
     units = models.ManyToManyField(Unit, through='OccupantTransfers', 
             null=True, blank=True, default=None) # history of dwellings for this occupant
     
     def full_address(self):
         """Returns a dictionary of this occupant's personal street address, unit, city, 
         state, and zip, and comes from the latest OccupantTransfers that matches the 
-        birth foreign key."""
+        person foreign key."""
         return self.occupant_transfers_set.latest().full_address()
 
 class Owner(models.Model):
@@ -147,4 +147,6 @@ class UnitRate(models.Model):
             month', 'By Noon every Monday', 'Every December 31'", max_length=32)
     rent_info = models.CharField(help_text='Enter any additional relevant \
             information about the rent.', max_length=64)
+
+#Still need to define managers, sublet-lessors, employment, income, convictions and related
 

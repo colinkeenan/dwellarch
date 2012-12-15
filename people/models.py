@@ -5,6 +5,45 @@ from django_localflavor_us.forms import USPhoneNumberField, USPSSelect, USSocial
 from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # two-letter postal codes: state/territory/country
 from django.db import models
 
+class Person(models.Model):
+    """The purpose of this class is to supply an id for a person in the database.
+    The only thing I could think to track here that shouldn't change through
+    a person's life is their race/ethnicity/ancestory, but it can all be left blank."""
+    # check all that apply
+    hispanic = models.NullBooleanField()
+    white = models.NullBooleanField()
+    european = models.NullBooleanField()
+    middle_eastern = models.NullBooleanField()
+    north_african = models.NullBooleanField()
+    black = models.NullBooleanField()
+    american_indian = models.NullBooleanField()
+    asian = models.NullBooleanField()
+    pacific_islander = models.NullBooleanField()
+    other = models.NullBooleanField()
+    additional_ancestory_information = models.CharField(max_length=64, blank=True)
+
+    def allCurrentNames(self):
+        """returns list of (name,type) where isCurrent() is True
+        and type is either 'registered', 'pseudonym' or 'alias'"""
+        pass
+
+    def allNamesFor(self, date):
+        """returns all names that were current on date"""
+        pass
+
+    
+class Nick(models.Model):
+    """A person should only have one nickname at a time and then only as an easy
+    way for people to refer to them. A person never pretends that their nickname
+    is their real name: that would be an alias. See isAlias method of NameChange."""
+    person = models.ForeignKey(Person)
+    date = models.DateField('date began using this nickname', help_text='Enter the \
+            date this nickname started to be used. If stopped using the previous \
+            one, enter the date no longer used and leave the nickname blank.')
+    name = models.CharField('nickname', help_text='Enter new nickname. If stopped \
+            using the previous nickname, indicate by leaving this blank.', 
+            max_length=32, blank=True)
+
 class Name(models.Model):
     date = models.DateField('date of birth or name change')
     prime_given_name = models.CharField('first given name', 
@@ -13,7 +52,8 @@ class Name(models.Model):
             max_length=64, blank=True)
     first_family_name = models.CharField(
             'first family name (surname)', help_text=
-            'Required. If this person only has one name, put it here.',
+            'Required. If the full name is just one name, put it here and leave \
+                    the other name fields blank.',
             max_length=32)
     second_family_name = models.CharField(
             "second family name or mother's maiden name", 
@@ -30,43 +70,43 @@ class Name(models.Model):
                 self.second_family_name if self.use2nd else
                 self.first_family_name)
 
-    def __str__(self):
+    def full_name(self):
         return '{} {} {}'.format(
                 self.prime_given_name, self.other_given_name, self.last())
+
+    def __str__(self):
+        return self.full_name()
 
     class Meta:
         abstract = True
         get_latest_by = 'date'
         ordering = ['-date'] # history of names for a person are returned current first 
 
-class Birth(Name):
-    # name fields and the birthdate as Birth#date is inherited from Name()
-    social_security_num = models.CharField(max_length=11, blank=True)
-
-class Nick(models.Model):
-    """A person should only have one nickname at a time and then only as an easy
-    way for people to refer to them. A person never pretends that their nickname
-    is their real name: that would be an alias. See isAlias method of NameChange."""
-    birth = models.ForeignKey(Birth)
-    date = models.DateField('date began using this nickname', help_text='Enter the \
-            date this nickname started to be used. If stopped using the previous \
-            one, enter the date no longer used and leave the nickname blank.')
-    name = models.CharField('nickname', help_text='Enter new nickname. If stopped \
-            using the previous nickname, indicate by leaving this blank.', 
-            max_length=32, blank=True)
-
 class NameChange(Name):
+    """The first NameChange is the one on the birth certificate. 
+    A person normally has one registered name and one nickname at a time.
+    Additional names are aliases that are recognized because they aren't
+    registered. If an old registered name is used as an alias, it should be
+    entered again with method of name change being Pseudonym, and not registered.
+    Any unregistered name will be considered an alias, even if not a pseudonym.
+    Pseudonyms can be registered as well though - stage names or authors
+    for example. If a Pseudonym is registered with an agency like County Clerk,
+    but not with Social Security and DMV, then the County Clerk Pseudonym can be 
+    used simultaneously with the Social Security/DMV 'real' name."""
+
     # inherits name fields and the NameChange#date from Name()
-    birth = models.ForeignKey(Birth)
+    person = models.ForeignKey(Person)
     reason = models.CharField('reason name was changed', max_length=64) 
     
-    COURT = 'CO'    # building up choices for the method of name change
+    BIRTH = 'BI'    # building up choices for the method of name change
+    COURT = 'CO'
     MARRIAGE = 'MA'
     DIVORCE = 'DI'
     ADOPTION = 'AD'
     NATURALIZATION = 'NA'
     PSEUDONYM = 'PS'
     METHOD_CHOICES = (
+            (BIRTH, 'Birth'),
             (COURT, 'Court Order'),
             (MARRIAGE, 'Marriage'),
             (DIVORCE, 'Divorce'),
@@ -79,13 +119,52 @@ class NameChange(Name):
             max_length=2, choices=METHOD_CHOICES, default=COURT)
     method_info = models.CharField('additional method information',
             help_text='Enter additional information about the name change \
-                    such as the court and document number', 
+                    such as the court and document number. May also enter \
+                    information about parents and hospital if this is the \
+                    birth name. To enter the Birth Certificate, Social \
+                    Security Number, and other identification, show this \
+                    name as registered with each relevant agency (County \
+                    Clerk, Social Security Administration, DMV etc.)', 
                     max_length=32, blank=True)
 
     def isAlias(self):
         """returns True if self hasn't been registered:
         i.e., True if there are no NameRegistration children of self """
         return not self.name_registration_set.exists()
+
+    def is2ndLegal(self):
+        """returns True if self is a pseudonym, but not an alias,
+        and not registered with both the DMV and Social Security"""
+        regs = [entry.registration for entry in self.name_registration_set]
+        return (self.method==PSEUDONYM and not isAlias() and not ( \
+            (NameRegistration.SSA in regs) and (NameRegistration.DMV in regs) ) \
+            )
+
+    def a2ndLegalExists(self):
+        """returns True if any instances of NameChange for this person
+        is2ndLegal"""
+        pass
+
+    def the2ndLegal(self):
+        """returns the 2ndLegal name if it exists"""
+        pass
+
+    def isCurrent(self):
+        """returns True for any of the following:
+        the latest registered name 
+        any Alias
+        the 2ndLegal name
+        the second latest registered name if the latest one is the 2ndLegal one"""
+        
+        latest_registered = self.name_registrations_set.latest().name_change
+        if (latest_registered == self) or isAlias() or is2ndLegal():
+            return True
+        elif latest_registered.is2ndLegal():
+            second_latest_registered = self.name_registrations_set.exclude(
+                    name_change=latest_registered).latest().name_change
+            return second_latest_registered == self
+        else:
+            return False
 
 class NameRegistration(models.Model):
     name_change = models.ForeignKey(NameChange)
@@ -117,8 +196,14 @@ class NameRegistration(models.Model):
                     Credit Card...', 
                     max_length=64, blank=True) 
 
+    class Meta:
+        get_latest_by = 'date'
+        ordering = ['-date'] # name registrations for a person are returned current first 
+
 class IdDoc(models.Model):
-    birth = models.ForeignKey(Birth)
+    name_registration = models.ForeignKey(NameRegistration)
+    name_on_id = models.CharField(help_text='Enter full name as listed on this \
+            identification.', max_length=128)
     name = models.CharField('identification-document name', 
             help_text='For example: Missouri Driver License', max_length=16)
     number = models.CharField(max_length=32)
@@ -127,7 +212,7 @@ class IdDoc(models.Model):
     info = models.CharField(max_length=32, blank=True)
 
 class Phone(models.Model):
-    birth = models.ForeignKey(Birth)
+    person = models.ForeignKey(Person)
     start_date = models.DateField('service start date', help_text=
             'Enter date this phone number went into service for this person \
                     with this carrier. Leave blank if that date cannot be determined.', 
@@ -159,13 +244,13 @@ class Phone(models.Model):
                     really belonged to this person, delete the service start date."
 
 class Email(models.Model):
-    birth = models.ForeignKey(Birth)
+    person = models.ForeignKey(Person)
     date = models.DateField('email-signup date')
     addr = models.EmailField('email', max_length=254)
     term = models.DateField('email-termination date')
 
 class Profile(models.Model):
-    birth = models.ForeignKey(Birth)
+    person = models.ForeignKey(Person)
     date = models.DateField('online-profile creation date')
     uri = models.URLField('online-profile link')
     del_date = models.DateField('online-profile deletion date')
