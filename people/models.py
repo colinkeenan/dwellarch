@@ -31,7 +31,11 @@ class Person(models.Model):
         """returns all names that were current on date"""
         pass
 
-    
+    def the2ndLegal(self):
+        """returns the registered pseudonym like some authors 
+        or actors have, if it exists"""
+        pass
+
 class Nick(models.Model):
     """A person should only have one nickname at a time and then only as an easy
     way for people to refer to them. A person never pretends that their nickname
@@ -135,19 +139,12 @@ class NameChange(Name):
     def is2ndLegal(self):
         """returns True if self is a pseudonym, but not an alias,
         and not registered with both the DMV and Social Security"""
-        regs = [entry.registration for entry in self.name_registration_set]
-        return (self.method==PSEUDONYM and not isAlias() and not ( \
-            (NameRegistration.SSA in regs) and (NameRegistration.DMV in regs) ) \
-            )
-
-    def a2ndLegalExists(self):
-        """returns True if any instances of NameChange for this person
-        is2ndLegal"""
-        pass
-
-    def the2ndLegal(self):
-        """returns the 2ndLegal name if it exists"""
-        pass
+        if self.method==PSEUDONYM and not isAlias(): 
+            regs = [entry.registration for entry in self.name_registration_set]
+            SSA, DMV = NameRegistration.SSA, NameRegistration.DMV
+            return not ((SSA in regs) and (DMV in regs))
+        else:
+            return False
 
     def isCurrent(self):
         """returns True for any of the following:
@@ -156,7 +153,8 @@ class NameChange(Name):
         the 2ndLegal name
         the second latest registered name if the latest one is the 2ndLegal one"""
         
-        latest_registered = self.name_registrations_set.latest().name_change
+        latest_registered = self.person.name_change_set.filter(
+                name_registration__name_change__isnull=False).latest().name_change
         if (latest_registered == self) or isAlias() or is2ndLegal():
             return True
         elif latest_registered.is2ndLegal():
