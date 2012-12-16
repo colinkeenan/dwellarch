@@ -26,17 +26,16 @@ class Person(models.Model):
     additional_ancestory_information = models.CharField(max_length=64, blank=True)
 
     def allCurrentNames(self):
-        """returns list of (name,type) where isCurrent() is True
-        and type is either 'registered', 'pseudonym' or 'alias'"""
-        pass
+        """returns a list of name_changes where name_change.isCurrent()"""
+        all_names = list[self.name_change_set]
+        all_current_names = []
+        for name in all_names:
+            if name.isCurrent():
+                all_current_names.append(name)
+        return all_current_names
 
     def allNamesFor(self, date):
         """returns all names that were current on date"""
-        pass
-
-    def theProperPseudonym(self):
-        """returns the registered pseudonym like some authors 
-        or actors have, if it exists"""
         pass
 
 class Nick(models.Model):
@@ -52,6 +51,8 @@ class Nick(models.Model):
             max_length=32, blank=True)
 
 class Name(models.Model):
+    """This is an abstract model inherited by NameChange. All name information
+    is stored in NameChange instances."""
     date = models.DateField('date first used', help_text='Enter \
             best estimate of the date this name was first used.')
     prime_given_name = models.CharField('first given name', 
@@ -197,6 +198,17 @@ class NameChange(Name):
         else:
             return False
 
+    def type(self):
+        """returns one of the following strings: 
+        'real and original' for the BIRTH method name_change if current
+        'real' for the latest non-pseudonym registered name_change other than BIRTH
+        'original' for the BIRTH method name_change if not current
+        'pseudonym' for any ProperPseudonym
+        'alias' for any Alias
+        'old' for non-pseudonym registered name_changes other than the latest and BIRTH"""
+        pass
+
+
 class NameRegistration(models.Model):
     name_change = models.ForeignKey(NameChange)
     date = models.DateField('date name registered with agency')
@@ -266,13 +278,17 @@ class Phone(models.Model):
             number will not be visible to other users of the database unless \
             given on a form like a rental applicaton. Anyone owning rental \
             units may gain access to any rental application in the database.')
-    belongs = models.NullBooleanField('belongs to this person', help_text='Does/did this \
-            phone number belong to this person? Should be checked if a service start date \
-            was entered.')
-    assert belongs==True if bool(start_date), "Since there's a date for this phone number \
-            going into service for this person, you must check off the box showing this \
-            phone number does/did belong to this person. If this phone number never \
-                    really belonged to this person, delete the service start date."
+    belongs = models.NullBooleanField('belongs to this person', help_text=
+            'Does/did this phone number belong to this person? Should be \
+                    checked if a service start date was entered.')
+
+    def clean(self):
+        if bool(start_date) and not belongs==True:
+            raise ValidationError("Since there's a date for this phone number \
+                    going into service for this person, you must check off the \
+                    box showing this phone number does/did belong to this person. \
+                    If this phone number never really belonged to this person, \
+                    delete the service start date.")
 
 class Email(models.Model):
     person = models.ForeignKey(Person)
