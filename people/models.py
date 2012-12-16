@@ -1,6 +1,7 @@
 import datetime
 from django.utils import timezone
 from django import forms
+from django.core.exceptions import ValidationError
 from django_localflavor_us.forms import USPhoneNumberField, USPSSelect, USSocialSecurityNumberField, USZipCodeField
 from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # two-letter postal codes: state/territory/country
 from django.db import models
@@ -10,15 +11,17 @@ class Person(models.Model):
     The only thing I could think to track here that shouldn't change through
     a person's life is their race/ethnicity/ancestory, but it can all be left blank."""
     # check all that apply
-    hispanic = models.NullBooleanField()
-    white = models.NullBooleanField()
+    hispanic_or_latino = models.NullBooleanField()
+    white_or_caucasian = models.NullBooleanField()
     european = models.NullBooleanField()
     middle_eastern = models.NullBooleanField()
-    north_african = models.NullBooleanField()
-    black = models.NullBooleanField()
+    arab_world_african = models.NullBooleanField()
+    black_african = models.NullBooleanField()
     american_indian = models.NullBooleanField()
+    eskimo_or_inuit = models.NullBooleanField()
     asian = models.NullBooleanField()
     pacific_islander = models.NullBooleanField()
+    hawaiin = models.NullBooleanField()
     other = models.NullBooleanField()
     additional_ancestory_information = models.CharField(max_length=64, blank=True)
 
@@ -31,7 +34,7 @@ class Person(models.Model):
         """returns all names that were current on date"""
         pass
 
-    def the2ndLegal(self):
+    def theProperPseudonym(self):
         """returns the registered pseudonym like some authors 
         or actors have, if it exists"""
         pass
@@ -49,7 +52,8 @@ class Nick(models.Model):
             max_length=32, blank=True)
 
 class Name(models.Model):
-    date = models.DateField('date of birth or name change')
+    date = models.DateField('date first used', help_text='Enter \
+            best estimate of the date this name was first used.')
     prime_given_name = models.CharField('first given name', 
             max_length=32, blank=True)
     other_given_name = models.CharField('middle given names', 
@@ -100,7 +104,14 @@ class NameChange(Name):
 
     # inherits name fields and the NameChange#date from Name()
     person = models.ForeignKey(Person)
-    reason = models.CharField('reason name was changed', max_length=64) 
+    reason = models.CharField('reason for name change', 
+            help_text='Enter the reason this name was assigned to this person.', 
+            max_length=64) 
+    date_registered = models.DateField('date first registered', help_text='Leave \
+            blank until there are registrations entered for this name; then \
+            return to this form and fill in the date of first registration or \
+            leave blank again and that date will be filled in automatically',
+            blank=True, null=True, default=None)
     
     BIRTH = 'BI'    # building up choices for the method of name change
     COURT = 'CO'
@@ -130,17 +141,37 @@ class NameChange(Name):
                     name as registered with each relevant agency (County \
                     Clerk, Social Security Administration, DMV etc.)', 
                     max_length=32, blank=True)
+    
+    def dateFirstRegistered(self):
+        if self.isAlias():
+            return None
+        else:
+            return min([reg.date for reg in self.name_registration_set])
+
+    def clean(self):
+        if self.date_registered != self.dateFirstRegistered():
+            if self.date_registered is None:
+                self.date_registered = self.dateFirstRegistered()
+            elif self.dateFirstRegistered is None:
+                raise ValidationError('First enter some registrations \
+                        for this name before entering the registration \
+                        date')
+            else:
+                raise ValidationError('The registration date entered \
+                        does not match the earliest registration date \
+                        for this name. Leave this field blank and the \
+                        correct date will be filled in automatically.')
 
     def isAlias(self):
         """returns True if self hasn't been registered:
         i.e., True if there are no NameRegistration children of self """
         return not self.name_registration_set.exists()
 
-    def is2ndLegal(self):
+    def isProperPseudonym(self):
         """returns True if self is a pseudonym, but not an alias,
         and not registered with both the DMV and Social Security"""
         if self.method==PSEUDONYM and not isAlias(): 
-            regs = [entry.registration for entry in self.name_registration_set]
+            regs = [name.registered_with for name in self.name_registration_set]
             SSA, DMV = NameRegistration.SSA, NameRegistration.DMV
             return not ((SSA in regs) and (DMV in regs))
         else:
@@ -150,23 +181,25 @@ class NameChange(Name):
         """returns True for any of the following:
         the latest registered name 
         any Alias
-        the 2ndLegal name
-        the second latest registered name if the latest one is the 2ndLegal one"""
+        any ProperPseudonym
+        the latest non-pseudonym registered name"""
         
-        latest_registered = self.person.name_change_set.filter(
-                name_registration__name_change__isnull=False).latest().name_change
-        if (latest_registered == self) or isAlias() or is2ndLegal():
+        name_changes = self.person.name_change_set
+        all_registered = name_changes.filter(
+                name_registration__name_change__isnull=False)
+        latest_registered = all_registered.latest('date_registered')
+        if (latest_registered == self) or isAlias() or isProperPseudonym():
             return True
-        elif latest_registered.is2ndLegal():
-            second_latest_registered = self.name_registrations_set.exclude(
-                    name_change=latest_registered).latest().name_change
-            return second_latest_registered == self
+        elif latest_registered.isProperPseudonym():
+            registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
+            latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
+            return latest_registered_nonpseudo == self
         else:
             return False
 
 class NameRegistration(models.Model):
     name_change = models.ForeignKey(NameChange)
-    date = models.DateField("this name's registration-date")
+    date = models.DateField('date name registered with agency')
 
     SSA = 'SSA' # building up choices of where the new name was registered
     BCA = 'BCA'
@@ -175,7 +208,7 @@ class NameRegistration(models.Model):
     SECSTATE = 'SOS'
     COUNTYCL = 'COC'
     OTHER = 'OTH'
-    REGISTRATION_CHOICES = (
+    AGENCIES = (
             (SSA, 'Social Security Administration'),
             (BCA, 'Bureau of Consular Affairs'),
             (USPS, 'United States Postal Service'),
@@ -184,9 +217,9 @@ class NameRegistration(models.Model):
             (COUNTYCL, 'County Clerk'),
             (OTHER, 'Other'),
     )
-    registration = models.CharField(help_text=
-            'Choose where this name was registered', 
-            max_length=3, choices=REGISTRATION_CHOICES, default=SSA)
+    registered_with = models.CharField(help_text=
+            'Choose the agency this name was registered with', 
+            max_length=3, choices=AGENCIES, default=SSA)
     reg_info = models.CharField('registration information', help_text=
             'Enter additional relevant information like state, county, \
                     or details about "Other" such as the Company Name \
