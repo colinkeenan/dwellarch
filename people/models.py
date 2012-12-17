@@ -191,25 +191,19 @@ class NameChange(Name):
         latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
         return latest_registered_nonpseudo == self
 
-    def isCurrent(self, name_changes=self.person.name_change_set):
-        """takes name_changes, a QuerySet of NameChange instances, and
+    def isCurrent(self, ondate=datetime.date.today()):
+        """excludes name_changes with dates > ondate and
         returns True if self is any of the following in that set: 
         any Alias
         any ProperPseudonym
         the latest non-pseudonym registered name"""
-        if self.isAlias() or self.isProperPseudonym():
+        if self.date > ondate:
+            return False
+        elif self.isAlias() or self.isProperPseudonym():
             return True
         else: # last chance for True is if it's latest non-pseudonym registered name
-            return isLatestRealName(name_changes)
-
-    def wasCurrentOn(self, maxdate):
-        """excludes name_changes with dates > maxdate and
-        returns the result of calling isCurrent on that set"""
-        if self.date > maxdate:
-            return False
-        else:
-            return isCurrent(self.person.name_change_set.exclude(
-                date__gt=models.F(maxdate)))
+            return isLatestRealName(self.person.name_change_set.exclude(
+                date__gt=models.F(ondate)))
 
     def type(self):
         """returns one of the following strings: 
