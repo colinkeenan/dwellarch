@@ -166,25 +166,26 @@ class NameChange(Name):
                         for this name. Leave this field blank and the \
                         correct date will be filled in automatically.')
 
-    def isAlias(self):
-        """returns True if self hasn't been registered:
-        i.e., True if there are no NameRegistration children of self """
-        return not self.name_registration_set.exists()
+    def isAlias(self, ondate=datetime.date.today()):
+        """returns True if self hasn't been registered by ondate"""
+        return not self.name_registration_set.exclude(date__gt=ondate).exists()
 
-    def isProperPseudonym(self):
-        """returns True if self is a pseudonym, but not an alias,
-        and not registered with both the DMV and Social Security"""
-        if self.method==PSEUDONYM and not isAlias(): 
-            regs = [name.registered_with for name in self.name_registration_set]
+    def isProperPseudonym(self, ondate=datetime.date.today()):
+        """returns True if self is a pseudonym but not an alias ondate,
+        and not registered with both the DMV and Social Security, ondate"""
+        if self.method==PSEUDONYM and not isAlias(ondate): 
+            agencies = [name.registered_with for name in 
+                    self.name_registration_set.exclude(date__gt=ondate)]
             SSA, DMV = NameRegistration.SSA, NameRegistration.DMV
-            return not ((SSA in regs) and (DMV in regs))
+            return not ((SSA in agencies) and (DMV in agencies))
         else:
             return False
 
-    def isLatestRealName(self, name_changes=self.person.name_change_set):
+    def isLatestRealName(self, ondate=datetime.date.today()):
         """takes name_changes, a QuerySet of NameChange instances, and
         returns True if self is the latest instance that's both registered 
         and not a pseudonym"""
+        name_changes = self.person.name_change_set.exclude(date__gt=ondate)
         all_registered = name_changes.filter(
                 name_registration__name_change__isnull=False)
         registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
@@ -202,23 +203,24 @@ class NameChange(Name):
         elif self.isAlias() or self.isProperPseudonym():
             return True
         else: # last chance for True is if it's latest non-pseudonym registered name
-            return isLatestRealName(self.person.name_change_set.exclude(
-                date__gt=models.F(ondate)))
+            return isLatestRealName(ondate)
 
-    def type(self):
+    def type(self, ondate=datetime.date.today()):
         """returns one of the following strings: 
-        'real and original' for the BIRTH method name_change if current
+        'was not in use yet' for self.date > ondate
+        'real and original' for the BIRTH method name_change if current ondate
         'real' for the latest non-pseudonym registered name_change other than BIRTH
-        'original' for the BIRTH method name_change if not current
-        'pseudonym' for any ProperPseudonym
-        'alias' for any Alias
+        'original' for the BIRTH method name_change if not current ondate
+        'pseudonym' for any ProperPseudonym ondate
+        'alias' for any Alias ondate
         'old' for non-pseudonym registered name_changes other than the latest and BIRTH"""
-        if self.isAlias():
+        if self.date > ondate:
+            return 'was not in use yet'
+        elif self.isAlias(ondate):
             return 'alias'
-        elif self.isProperPseudonym():
+        elif self.isProperPseudonym(ondate):
             return 'pseudonym'
-        elif self.isCurrent(): 
-            # all isCurrent()'s are aliases, pseudonyms, or latest non-pseudo registered
+        elif isLatestRealName(ondate):
             if self.method == BIRTH:
                 return 'real and original'
             else:
