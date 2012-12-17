@@ -24,22 +24,22 @@ class Person(models.Model):
     hawaiin = models.NullBooleanField()
     other = models.NullBooleanField()
     additional_ancestory_information = models.CharField(max_length=64, blank=True)
+    any_other_relevant_information = models.CharField(help_text='Enter any other \
+            information that distinguishes this person and will stay the same \
+            from birth to death.', max_length=256, blank=True)
 
-    def allCurrentNames(self):
-        """returns a list of name_changes where name_change.isCurrent()"""
+    def allCurrentNames(self, ondate=datetime.date.today()):
+        """returns a list of name_changes where name_change was current 
+        ondate (which defaults to today)"""
         all_names = list[self.name_change_set]
-        all_current_names = []
+        current_names_ondate = []
         for name in all_names:
-            if name.isCurrent():
-                all_current_names.append(name)
-        return all_current_names
+            if name.isCurrent(ondate):
+                current_names_ondate.append(name)
+        return current_names_ondate
 
     def allNames(self):
         return self.name_change_set
-
-    def allNamesFor(self, date):
-        """returns all names that were current on date"""
-        pass
 
 class Nick(models.Model):
     """A person should only have one nickname at a time and then only as an easy
@@ -150,7 +150,7 @@ class NameChange(Name):
         if self.isAlias():
             return None
         else:
-            return min([reg.date for reg in self.name_registration_set])
+            return self.name_registration_set.dates('date','day')[0]
 
     def clean(self):
         if self.date_registered != self.dateFirstRegistered():

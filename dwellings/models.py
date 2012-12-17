@@ -44,7 +44,7 @@ class Prop(models.Model):
         relevant_date = self.prop_transfers_set.filter(date__lte=date).latest().date
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
-class Occupant(models.Model): # everone in the database is an occupant
+class Occupant(models.Model): # everone in the database is an occupant if have that info
     person = models.ForeignKey(people.Person)
     units = models.ManyToManyField(Unit, through='OccupantTransfers', 
             null=True, blank=True, default=None) # history of dwellings for this occupant
