@@ -34,6 +34,9 @@ class Person(models.Model):
                 all_current_names.append(name)
         return all_current_names
 
+    def allNames(self):
+        return self.name_change_set
+
     def allNamesFor(self, date):
         """returns all names that were current on date"""
         pass
@@ -103,7 +106,7 @@ class NameChange(Name):
     but not with Social Security and DMV, then the County Clerk Pseudonym can be 
     used simultaneously with the Social Security/DMV 'real' name."""
 
-    # inherits name fields and the NameChange#date from Name()
+    # inherits date and name fields from the abstract model: Name
     person = models.ForeignKey(Person)
     reason = models.CharField('reason for name change', 
             help_text='Enter the reason this name was assigned to this person.', 
@@ -178,25 +181,35 @@ class NameChange(Name):
         else:
             return False
 
-    def isCurrent(self):
-        """returns True for any of the following:
+    def isLatestRealName(self, name_changes=self.person.name_change_set):
+        """takes name_changes, a QuerySet of NameChange instances, and
+        returns True if self is the latest instance that's both registered 
+        and not a pseudonym"""
+        all_registered = name_changes.filter(
+                name_registration__name_change__isnull=False)
+        registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
+        latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
+        return latest_registered_nonpseudo == self
+
+    def isCurrent(self, name_changes=self.person.name_change_set):
+        """takes name_changes, a QuerySet of NameChange instances, and
+        returns True if self is any of the following in that set: 
         any Alias
         any ProperPseudonym
         the latest non-pseudonym registered name"""
-        
-        if isAlias() or isProperPseudonym():
+        if self.isAlias() or self.isProperPseudonym():
             return True
         else: # last chance for True is if it's latest non-pseudonym registered name
-            name_changes = self.person.name_change_set
-            all_registered = name_changes.filter(
-                    name_registration__name_change__isnull=False)
-            latest_registered = all_registered.latest('date_registered')
-            if (latest_registered == self): # not a pseudonym or wouldn't get this far
-                return True
-            else:
-                registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
-                latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
-                return latest_registered_nonpseudo == self
+            return isLatestRealName(name_changes)
+
+    def wasCurrentOn(self, maxdate):
+        """excludes name_changes with dates > maxdate and
+        returns the result of calling isCurrent on that set"""
+        if self.date > maxdate:
+            return False
+        else:
+            return isCurrent(self.person.name_change_set.exclude(
+                date__gt=models.F(maxdate)))
 
     def type(self):
         """returns one of the following strings: 
