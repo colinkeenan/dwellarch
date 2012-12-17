@@ -180,23 +180,23 @@ class NameChange(Name):
 
     def isCurrent(self):
         """returns True for any of the following:
-        the latest registered name 
         any Alias
         any ProperPseudonym
         the latest non-pseudonym registered name"""
         
-        name_changes = self.person.name_change_set
-        all_registered = name_changes.filter(
-                name_registration__name_change__isnull=False)
-        latest_registered = all_registered.latest('date_registered')
-        if (latest_registered == self) or isAlias() or isProperPseudonym():
+        if isAlias() or isProperPseudonym():
             return True
-        elif latest_registered.isProperPseudonym():
-            registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
-            latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
-            return latest_registered_nonpseudo == self
-        else:
-            return False
+        else: # last chance for True is if it's latest non-pseudonym registered name
+            name_changes = self.person.name_change_set
+            all_registered = name_changes.filter(
+                    name_registration__name_change__isnull=False)
+            latest_registered = all_registered.latest('date_registered')
+            if (latest_registered == self): # not a pseudonym or wouldn't get this far
+                return True
+            else:
+                registered_nonpseudos = all_registered.exclude(method=PSEUDONYM)
+                latest_registered_nonpseudo = registered_nonpseudos.latest('date_registered')
+                return latest_registered_nonpseudo == self
 
     def type(self):
         """returns one of the following strings: 
@@ -206,8 +206,20 @@ class NameChange(Name):
         'pseudonym' for any ProperPseudonym
         'alias' for any Alias
         'old' for non-pseudonym registered name_changes other than the latest and BIRTH"""
-        pass
-
+        if self.isAlias():
+            return 'alias'
+        elif self.isProperPseudonym():
+            return 'pseudonym'
+        elif self.isCurrent(): 
+            # all isCurrent()'s are aliases, pseudonyms, or latest non-pseudo registered
+            if self.method == BIRTH:
+                return 'real and original'
+            else:
+                return 'real'
+        elif self.method == BIRTH:
+            return 'original'
+        else:
+            return 'old'
 
 class NameRegistration(models.Model):
     name_change = models.ForeignKey(NameChange)
