@@ -47,10 +47,10 @@ class Nick(models.Model):
     is their real name: that would be an alias. See isAlias method of NameChange."""
     person = models.ForeignKey(Person)
     date = models.DateField('date began using this nickname', help_text='Enter the \
-            date this nickname started to be used. If stopped using the previous \
-            one, enter the date no longer used and leave the nickname blank.')
+            date this nickname started to be used. If stopped using  any nickname,\
+            enter that date and leave the nickname blank.')
     name = models.CharField('nickname', help_text='Enter new nickname. If stopped \
-            using the previous nickname, indicate by leaving this blank.', 
+            using any nickname, indicate by leaving this blank.', 
             max_length=32, blank=True)
 
 class Name(models.Model):
@@ -182,9 +182,8 @@ class NameChange(Name):
             return False
 
     def isLatestRealName(self, ondate=datetime.date.today()):
-        """takes name_changes, a QuerySet of NameChange instances, and
-        returns True if self is the latest instance that's both registered 
-        and not a pseudonym"""
+        """returns True if self is the latest instance ondate that's both 
+        registered and not a pseudonym"""
         name_changes = self.person.name_change_set.exclude(date__gt=ondate)
         all_registered = name_changes.filter(
                 name_registration__name_change__isnull=False)
@@ -205,7 +204,7 @@ class NameChange(Name):
         else: # last chance for True is if it's latest non-pseudonym registered name
             return isLatestRealName(ondate)
 
-    def type(self, ondate=datetime.date.today()):
+    def name_type(self, ondate=datetime.date.today()):
         """returns one of the following strings: 
         'was not in use yet' for self.date > ondate
         'real and original' for the BIRTH method name_change if current ondate
@@ -317,9 +316,12 @@ class Email(models.Model):
     addr = models.EmailField('email', max_length=254)
     term = models.DateField('email-termination date')
 
-class Profile(models.Model):
+class URI(models.Model):
     person = models.ForeignKey(Person)
-    date = models.DateField('online-profile creation date')
-    uri = models.URLField('online-profile link')
-    del_date = models.DateField('online-profile deletion date')
-    
+    date = models.DateField('date of creation')
+    uri = models.URLField('online link')
+    del_date = models.DateField('date of deletion')
+    type_of_data = models.CharField(help_text="For example: 'online profile', \
+            'portrait', 'photo of face', 'scan of fingerprints'", 
+            max_length = 32)
+   
