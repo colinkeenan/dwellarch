@@ -239,6 +239,7 @@ class NameRegistration(models.Model):
     DMV = 'DMV'
     SECSTATE = 'SOS'
     COUNTYCL = 'COC'
+    ELECTION = 'ELE'
     OTHER = 'OTH'
     AGENCIES = (
             (SSA, 'Social Security Administration'),
@@ -247,6 +248,7 @@ class NameRegistration(models.Model):
             (DMV, 'Department of Motor Vehicles'),
             (SECSTATE, 'Secretary of State'),
             (COUNTYCL, 'County Clerk'),
+            (ELECTION, 'Election Board'),
             (OTHER, 'Other'),
     )
     registered_with = models.CharField(help_text=
