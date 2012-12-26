@@ -166,7 +166,7 @@ class Unit(models.Model):
         Usually, there will be just one or two owners in the list."""
         return self.prop.owners(ondate)
 
-    def manager(self, ondate=datetime.date.today()):
+    def managers(self, ondate=datetime.date.today()):
         """Returns a list of managers for the given ondate, defaults to the 
         landlords if there aren't any managers for this unit."""
         manager_rates_beforedate = self.unit_manage_rate_set.filter(date__lte=ondate)
