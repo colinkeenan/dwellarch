@@ -39,9 +39,9 @@ class Prop(models.Model):
     def zip_code(self):
         return self.land().zip_code
 
-    def owners(self, date):
-        """returns a list of this propertie's owners on 'date'"""
-        relevant_date = self.prop_transfers_set.filter(date__lte=date).latest().date
+    def owners(self, ondate=datetime.date.today()):
+        """returns a list of this propertie's owners ondate (default's to today)"""
+        relevant_date = self.prop_transfers_set.filter(date__lte=ondate).latest().date
         return list(self.owners_set.filter(prop_transfers__date=relevant_date))
 
 class Occupant(models.Model): # everone in the database is an occupant if have that info
@@ -59,8 +59,53 @@ class Owner(models.Model):
     """The first owner in the database needs to be the first occupant in the database
     and be named 'Not determined yet.' so that users can enter addresses even if they
     can't determine the owner"""
-    occupant = models.ForeignKey(Occupant) #this owner: everyone is an occupant somewhere
+    occupant = models.ForeignKey(Occupant) #this owner is an occupant somewhere
     props = models.ManyToManyField(Prop, through='PropTransfers')
+
+class Manager(models.Model):
+    occupant = models.ForeignKey(Occupant) #this manager is an occupant somewhere
+    units = models.ManyToManyField(Unit, through='UnitManageRate')
+
+class Rate(models.Model):
+    """Abstract class inherited by anything that needs a rate like UnitRate for
+    rent, or UnitManageRate for paying managers, or PayRate for job income"""
+    amount = models.DecimalField(max_digits=9, decimal_places=2)
+    HOURLY = 'HO'    # building up choices for the rate-period 
+    DAILY = 'DA'
+    WEEKLY = 'WE'
+    TWICE-A-MONTH = 'TW'
+    MONTHLY = 'MO'
+    2MONTHLY = '2M'
+    3MONTHLY = '3M'
+    6MONTHLY = '6M'
+    YEARLY = 'YE'
+    NEVER = 'NE'
+    PERIOD_CHOICES = (
+            (HOURLY, 'Hourly'),
+            (DAILY, 'Daily'),
+            (WEEKLY, 'Weekly'),
+            (TWICE-A-MONTH, 'Twice-a-month'),
+            (MONTHLY, 'Monthly'),
+            (2MONTHLY, 'Every-two-months'),
+            (3MONTHLY, 'Every-three-months'),
+            (6MONTHLY, 'Every-six-months'),
+            (YEARLY, 'Yearly'),
+            (NEVER, 'Never'),
+    )
+    frequency = models.CharField(help_text= 'Choose how often payment is made', 
+            max_length=2, choices=PERIOD_CHOICES, default=MONTHLY)
+    deadline = models.CharField(help_text="Examples: 'The first of every\
+            month', 'By Noon every Monday', 'Every December 31'", max_length=32)
+    info = models.CharField(help_text='Enter any additional relevant \
+            information about the rate.', max_length=64)
+
+    class Meta:
+        abstract = True
+
+class UnitManageRate(Rate):
+    manager = models.ForeignKey(Manager)
+    unit = models.ForeignKey(Unit)
+    date = models.DateField('start date')
 
 class PropTransfers(models.Model):
     owner = models.ForeignKey(Owner)
@@ -109,44 +154,16 @@ class Unit(models.Model):
         city = self.prop.city()
         state = self.prop.state()
         zip_code = self.prop.zip_code()
-        return {'address':address, 'unit':self.number, 'city':city, 'state':state, 'zip_code':zip_code}
+        return {'address':address, 'unit':self.number, 'city':city, 'state':state, 
+                'zip_code':zip_code}
 
-    def landlords(self, date):
-        """For 'date', returns a list of owners of the unit's prop (property)
+    def landlords(self, ondate=datetime.date.today()):
+        """For 'ondate', returns a list of owners of the unit's prop (property)
         Usually, there will be just one or two owners in the list."""
-        return self.prop.owners(date):
+        return self.prop.owners(ondate):
 
-class UnitRate(models.Model):
+class UnitRate(Rate):
     unit = models.ForeignKey(Unit)
-    rent = models.DecimalField(max_digits=9, decimal_places=2)
-    HOURLY = 'HO'    # building up choices for the rental period
-    DAILY = 'DA'
-    WEEKLY = 'WE'
-    TWICE-A-MONTH = 'TW'
-    MONTHLY = 'MO'
-    2MONTHLY = '2M'
-    3MONTHLY = '3M'
-    6MONTHLY = '6M'
-    YEARLY = 'YE'
-    NEVER = 'NE'
-    PERIOD_CHOICES = (
-            (HOURLY, 'Hourly'),
-            (DAILY, 'Daily'),
-            (WEEKLY, 'Weekly'),
-            (TWICE-A-MONTH, 'Twice-a-month'),
-            (MONTHLY, 'Monthly'),
-            (2MONTHLY, 'Every-two-months'),
-            (3MONTHLY, 'Every-three-months'),
-            (6MONTHLY, 'Every-six-months'),
-            (YEARLY, 'Yearly'),
-            (NEVER, 'Never'),
-    )
-    rent_frequency = models.CharField(help_text= 'Choose how often rent is due', 
-            max_length=2, choices=PERIOD_CHOICES, default=MONTHLY)
-    rent_deadline = models.CharField(help_text="Examples: 'The first of every\
-            month', 'By Noon every Monday', 'Every December 31'", max_length=32)
-    rent_info = models.CharField(help_text='Enter any additional relevant \
-            information about the rent.', max_length=64)
 
-#Still need to define managers, sublet-lessors, employment, income, convictions and related
+#Still need to define sublet-lessors, employment, income, convictions and related
 
