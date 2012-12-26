@@ -107,6 +107,10 @@ class UnitManageRate(Rate):
     unit = models.ForeignKey(Unit)
     date = models.DateField('start date')
 
+    class Meta: 
+        get_latest_by = 'date'
+        ordering = ['-date'] #lists of manger pay rates ordered current first 
+
 class PropTransfers(models.Model):
     owner = models.ForeignKey(Owner)
     prop = models.ForeignKey(Prop)
@@ -160,7 +164,17 @@ class Unit(models.Model):
     def landlords(self, ondate=datetime.date.today()):
         """For 'ondate', returns a list of owners of the unit's prop (property)
         Usually, there will be just one or two owners in the list."""
-        return self.prop.owners(ondate):
+        return self.prop.owners(ondate)
+
+    def manager(self, ondate=datetime.date.today()):
+        """Returns a list of managers for the given ondate, defaults to the 
+        landlords if there aren't any managers for this unit."""
+        manager_rates_beforedate = self.unit_manage_rate_set.filter(date__lte=ondate)
+        if bool(manager_rates_beforedate):
+            relevant_date = manager_rates_beforedate.latest().date
+            return list(manager_rates_beforedate.filter(unit_manage_rate__date=relevant_date))
+        else:
+            return self.landlords(ondate)
 
 class UnitRate(Rate):
     unit = models.ForeignKey(Unit)
