@@ -40,9 +40,13 @@ class Prop(models.Model):
         return self.land().zip_code
 
     def owners(self, ondate=datetime.date.today()):
-        """returns a list of this propertie's owners ondate (default's to today)"""
-        relevant_date = self.prop_transfers_set.filter(date__lte=ondate).latest().date
-        return list(self.owners_set.filter(prop_transfers__date=relevant_date))
+        """returns a list of this propertie's owners ondate (default's to today)
+        there should always be at least one owner because if a prop is entered
+        without an owner, that form needs to be setup to default to the 'Not
+        determined yet' owner"""
+        transfers_beforedate = self.prop_transfers_set.filter(date__lte=ondate)
+        relevant_date = transfers_beforedate.latest().date
+        return list(transfers_beforedate.filter(date=relevant_date))
 
 class Occupant(models.Model): # everone in the database is an occupant if have that info
     person = models.ForeignKey(people.Person)
@@ -66,9 +70,14 @@ class Manager(models.Model):
     occupant = models.ForeignKey(Occupant) #this manager is an occupant somewhere
     units = models.ManyToManyField(Unit, through='UnitManageRate')
 
+class SubletLessor(models.Model):
+    occupant = models.ForeignKey(Occupant) #this sublet-lessor is an occupant somewhere
+    units = models.ManyToManyField(Unit, through='SubletRate')
+
 class Rate(models.Model):
     """Abstract class inherited by anything that needs a rate like UnitRate for
     rent, or UnitManageRate for paying managers, or PayRate for job income"""
+    date = models.DateField('start date')
     amount = models.DecimalField(max_digits=9, decimal_places=2)
     HOURLY = 'HO'    # building up choices for the rate-period 
     DAILY = 'DA'
@@ -101,15 +110,63 @@ class Rate(models.Model):
 
     class Meta:
         abstract = True
+        get_latest_by = 'date'
+        ordering = ['-date'] 
+
+class UnitRate(Rate):
+    unit = models.ForeignKey(Unit)
 
 class UnitManageRate(Rate):
     manager = models.ForeignKey(Manager)
     unit = models.ForeignKey(Unit)
-    date = models.DateField('start date')
 
-    class Meta: 
-        get_latest_by = 'date'
-        ordering = ['-date'] #lists of manger pay rates ordered current first 
+class SubletRate(Rate):
+    sublet_lessor = models.ForeignKey(SubletLessor)
+    unit = models.ForeignKey(Unit)
+
+class Unit(models.Model):
+    prop = models.ForeignKey(Prop)
+    number = models.CharField('unit number or name', help_text='examples: Apt 1A \
+            or Front Bedroom. Leave blank if the entire property is one dwelling \
+            unit, such as a single-family home. If there are multiple buildings \
+            with dwelling units in each and all the buildings are on land with \
+            the same address, then this unit number or name must be unique and so \
+            should contain the building name or number.', 
+            max_length=32, blank=True)
+
+    def full_address(self):
+        """Returns a dictionary of street address, unit number, city, state, zip"""
+        address = self.prop.address()
+        city = self.prop.city()
+        state = self.prop.state()
+        zip_code = self.prop.zip_code()
+        return {'address':address, 'unit':self.number, 'city':city, 'state':state, 
+                'zip_code':zip_code}
+
+    def landlords(self, ondate=datetime.date.today()):
+        """For 'ondate', returns a list of owners of the unit's prop (property)
+        Usually, there will be just one or two owners in the list."""
+        return self.prop.owners(ondate)
+
+    def managers(self, ondate=datetime.date.today()):
+        """Returns a list of managers for the given ondate, defaults to the 
+        landlords if there aren't any managers for this unit."""
+        manager_rates_beforedate = self.unit_manage_rate_set.filter(date__lte=ondate)
+        if bool(manager_rates_beforedate):
+            relevant_date = manager_rates_beforedate.latest().date
+            return list(manager_rates_beforedate.filter(date=relevant_date))
+        else:
+            return self.landlords(ondate)
+
+    def sublet_lessors(self, ondate=datetime.date.today()):
+        """Returns a list of sublet-lessors for ondate. Will be an empty
+        list most of the time"""
+        sublet_rates_beforedate = self.sublet_rate_set.filter(date__lte=ondate)
+        if bool(sublet_rates_beforedate):
+            relevant_date = sublet_rates_beforedate.latest().date
+            return list(sublet_rates_beforedate.filter(date=relevant_date))
+        else:
+            return []
 
 class PropTransfers(models.Model):
     owner = models.ForeignKey(Owner)
@@ -142,42 +199,5 @@ class OccupantTransfers(models.Model):
         get_latest_by = 'date'
         ordering = ['-date'] #lists of occupant transfers are ordered current first 
 
-class Unit(models.Model):
-    prop = models.ForeignKey(Prop)
-    number = models.CharField('unit number or name', help_text='examples: Apt 1A \
-            or Front Bedroom. Leave blank if the entire property is one dwelling \
-            unit, such as a single-family home. If there are multiple buildings \
-            with dwelling units in each and all the buildings are on land with \
-            the same address, then this unit number or name must be unique and so \
-            should contain the building name or number.', 
-            max_length=32, blank=True)
-
-    def full_address(self):
-        """Returns a dictionary of street address, unit number, city, state, zip"""
-        address = self.prop.address()
-        city = self.prop.city()
-        state = self.prop.state()
-        zip_code = self.prop.zip_code()
-        return {'address':address, 'unit':self.number, 'city':city, 'state':state, 
-                'zip_code':zip_code}
-
-    def landlords(self, ondate=datetime.date.today()):
-        """For 'ondate', returns a list of owners of the unit's prop (property)
-        Usually, there will be just one or two owners in the list."""
-        return self.prop.owners(ondate)
-
-    def managers(self, ondate=datetime.date.today()):
-        """Returns a list of managers for the given ondate, defaults to the 
-        landlords if there aren't any managers for this unit."""
-        manager_rates_beforedate = self.unit_manage_rate_set.filter(date__lte=ondate)
-        if bool(manager_rates_beforedate):
-            relevant_date = manager_rates_beforedate.latest().date
-            return list(manager_rates_beforedate.filter(unit_manage_rate__date=relevant_date))
-        else:
-            return self.landlords(ondate)
-
-class UnitRate(Rate):
-    unit = models.ForeignKey(Unit)
-
-#Still need to define sublet-lessors, employment, income, convictions and related
+#Still need to define employment, income, convictions and related
 
