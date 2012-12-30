@@ -74,6 +74,11 @@ class SubletLessor(models.Model):
     occupant = models.ForeignKey(Occupant) #this sublet-lessor is an occupant somewhere
     units = models.ManyToManyField(Unit, through='SubletRate')
 
+class Employer(models.Model):
+    location = models.ForeignKey(Unit)
+    company_name = models.CharField(max_length=64)
+    employees = models.ManyToManyField(Occupant, through='PayRate')
+
 class Rate(models.Model):
     """Abstract class inherited by anything that needs a rate like UnitRate for
     rent, or UnitManageRate for paying managers, or PayRate for job income"""
@@ -123,6 +128,10 @@ class UnitManageRate(Rate):
 class SubletRate(Rate):
     sublet_lessor = models.ForeignKey(SubletLessor)
     unit = models.ForeignKey(Unit)
+
+class PayRate(Rate):
+    employer = models.ForeignKey(Employer)
+    employee = models.ForeignKey(Occupant)
 
 class Unit(models.Model):
     prop = models.ForeignKey(Prop)
@@ -199,5 +208,4 @@ class OccupantTransfers(models.Model):
         get_latest_by = 'date'
         ordering = ['-date'] #lists of occupant transfers are ordered current first 
 
-#Still need to define employment, income, convictions and related
-
+#Still need to define conviction, spouse, child, relative, acquaintance, pet: name, breed, shots, license
