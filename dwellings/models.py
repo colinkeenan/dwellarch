@@ -74,10 +74,48 @@ class SubletLessor(models.Model):
     occupant = models.ForeignKey(Occupant) #this sublet-lessor is an occupant somewhere
     units = models.ManyToManyField(Unit, through='SubletRate')
 
-class Employer(models.Model):
+class Payer(models.Model):
     location = models.ForeignKey(Unit)
-    company_name = models.CharField(max_length=64)
-    employees = models.ManyToManyField(Occupant, through='PayRate')
+    payer_name = models.CharField(max_length=64)
+    payees = models.ManyToManyField(Occupant, through='PayRate')
+    end_date = models.DateField(blank=True, null=True, default=None)
+    end_reason = models.CharField(max_length=128)
+    EMPLOYER = 'E'
+    UNEMPLOYMENT = 'U'
+    FOODSTAMPS = 'F'
+    SSI = 'I'
+    TANF = 'T'
+    SECTION8 = '8'
+    DISABILITY = 'D'
+    RETIREMENT = 'R'
+    SURVIVOR = 'S'
+    PENSION = 'P'
+    CHILDSUPPORT = 'C'
+    ALIMONY = 'A'
+    GUARDIAN = 'G'
+    SELF = 'L'
+    OTHER = 'O'
+    PAYER_TYPE_CHOICES = (
+            (EMPLOYER, 'Employer'),
+            (UNEMPLOYMENT, 'Unemployment Insurance'),
+            (FOODSTAMPS, 'Social Services: Food Stamps'),
+            (SSI, 'Social Services: SSI'),
+            (TANF, 'Social Services: TANF'),
+            (SECTION8, 'Public Housing Authority: Section 8'),
+            (DISABILITY, 'Social Security: Disability of self/spouse/parent)'),
+            (RETIREMENT, 'Social Security: Retirement of self/spouse/parent)'),
+            (SURVIVOR, 'Social Security: Survivor'),
+            (PENSION, 'Pension'),
+            (CHILDSUPPORT, 'Former Spouse: Child Support'),
+            (ALIMONY, 'Former Spouse: Alimony'),
+            (GUARDIAN, 'Parent/Guardian'),
+            (SELF, 'Self'),
+            (OTHER, 'Other'),
+    )
+    payer_type = models.CharField(help_text='What type of agency is paying?',
+            max_length=1, choices=PAYER_TYPE_CHOICES, default=EMPLOYER)
+    description = models.CharField(help_text='Additional information about \
+            this source of income.',max_length=128)
 
 class Rate(models.Model):
     """Abstract class inherited by anything that needs a rate like UnitRate for
@@ -130,8 +168,8 @@ class SubletRate(Rate):
     unit = models.ForeignKey(Unit)
 
 class PayRate(Rate):
-    employer = models.ForeignKey(Employer)
-    employee = models.ForeignKey(Occupant)
+    payer = models.ForeignKey(Payer)
+    payee = models.ForeignKey(Occupant)
 
 class Unit(models.Model):
     prop = models.ForeignKey(Prop)
