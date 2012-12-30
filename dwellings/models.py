@@ -194,6 +194,8 @@ class OccupantTransfers(models.Model):
             Leave blank if vacant.', null=True, blank=True, default=None)
     date = models.DateField('rental date', help_text='If nobody lives here, \
             enter the date that this unit became vacant.')
+    eviction_date = models.DateField(help_text='Leave blank until this \
+            occupant is evicted, if ever.', blank=True, null=True, default=None)
 
     def full_address(self):
         """Returns a dictionary of street address, unit, city, state, and zip"""
@@ -208,4 +210,15 @@ class OccupantTransfers(models.Model):
         get_latest_by = 'date'
         ordering = ['-date'] #lists of occupant transfers are ordered current first 
 
-#Still need to define conviction, spouse, child, relative, acquaintance, pet: name, breed, shots, license
+class Conviction(models.Model):
+    occupant = models.ForeignKey(Occupant) #the person convicted
+    date = models.DateField(Date)
+    offense = models.CharField(max_length=64)
+    county = models.CharField(max_length=64)
+    state = USPostalCodeField
+    doc = models.CharField(help_text='Enter D.O.C. ID Number, if known', 
+            blank=True, max_length=64)
+    po = models.CharField(help_text='If currently on parole or probation, include \
+            P.O. name and phone number.', blank=True, max_length=128)
+
+#Still need to define spouse, child, relative, acquaintance, pet: name, breed, shots, license
