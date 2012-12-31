@@ -49,7 +49,7 @@ class Prop(models.Model):
         return list(transfers_beforedate.filter(date=relevant_date))
 
 class Occupant(models.Model): # everone in the database is an occupant if have that info
-    person = models.ForeignKey(people.Person)
+    person = models.ForeignKey(people.Person) # can be a corporation or government agency
     units = models.ManyToManyField(Unit, through='OccupantTransfers', 
             null=True, blank=True, default=None) # history of dwellings for this occupant
     
@@ -75,8 +75,7 @@ class SubletLessor(models.Model):
     units = models.ManyToManyField(Unit, through='SubletRate')
 
 class Payer(models.Model):
-    location = models.ForeignKey(Unit)
-    payer_name = models.CharField(max_length=64)
+    payer_identity = models.ForeignKey(Occupant) # person, corporation, or agency
     payees = models.ManyToManyField(Occupant, through='PayRate')
     end_date = models.DateField(blank=True, null=True, default=None)
     end_reason = models.CharField(max_length=128)
@@ -259,4 +258,4 @@ class Conviction(models.Model):
     po = models.CharField(help_text='If currently on parole or probation, include \
             P.O. name and phone number.', blank=True, max_length=128)
 
-#Still need to define spouse, child, relative, acquaintance, pet: name, breed, shots, license
+#Still need to define partner (spouse, domestic, business), child, relative, acquaintance, shareholder (owning part of a 'person' which is really a corporation), pet: name, breed, shots, license

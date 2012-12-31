@@ -7,10 +7,13 @@ from django_localflavor_us.models import PhoneNumberField, USPostalCodeField # t
 from django.db import models
 
 class Person(models.Model):
-    """The purpose of this class is to supply an id for a person in the database.
+    """The purpose of this class is to supply an id for a person, corporation,  
+    or government agency in the database.
     The only thing I could think to track here that shouldn't change through
     a person's life is their race/ethnicity/ancestory, but it can all be left blank."""
     # check all that apply
+    corporation = models.NullBooleanField()
+    government_agency = models.NullBooleanField()
     hispanic_or_latino = models.NullBooleanField()
     white_or_caucasian = models.NullBooleanField()
     european = models.NullBooleanField()
@@ -25,8 +28,8 @@ class Person(models.Model):
     other = models.NullBooleanField()
     additional_ancestory_information = models.CharField(max_length=64, blank=True)
     any_other_relevant_information = models.CharField(help_text='Enter any other \
-            information that distinguishes this person and will stay the same \
-            from birth to death.', max_length=256, blank=True)
+            distinguishing information for this person/corporation that should \
+            not change with time.', max_length=256, blank=True)
 
     def allCurrentNames(self, ondate=datetime.date.today()):
         """returns a list of name_changes where name_change was current 
@@ -64,9 +67,12 @@ class Name(models.Model):
             max_length=64, blank=True)
     first_family_name = models.CharField(
             'first family name (surname)', help_text=
-            'Required. If the full name is just one name, put it here and leave \
-                    the other name fields blank.',
-            max_length=32)
+            'Required. If the full name is just one name or \
+                    the name of a corporation, then put it \
+                    here even if it contains spaces. If \
+                    longer than 64 characters, put the \
+                    rest wherever it makes sense.',
+            max_length=64)
     second_family_name = models.CharField(
             "second family name or mother's maiden name", 
             max_length=32, blank=True)
@@ -118,6 +124,8 @@ class NameChange(Name):
             blank=True, null=True, default=None)
     
     BIRTH = 'BI'    # building up choices for the method of name change
+    INCORPORATION = 'IN'
+    AGENCY = 'AG'
     COURT = 'CO'
     MARRIAGE = 'MA'
     DIVORCE = 'DI'
@@ -126,6 +134,8 @@ class NameChange(Name):
     PSEUDONYM = 'PS'
     METHOD_CHOICES = (
             (BIRTH, 'Birth'),
+            (INCORPORATION, 'Incorporation of a business, city, or town'),
+            (AGENCY, 'Naming a government agency'),
             (COURT, 'Court Order'),
             (MARRIAGE, 'Marriage'),
             (DIVORCE, 'Divorce'),
