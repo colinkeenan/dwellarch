@@ -10,11 +10,18 @@ class Person(models.Model):
     """The purpose of this class is to supply an id for a person, corporation,  
     or government agency in the database.
     The only thing I could think to track here that shouldn't change through a person's 
-    life is their race/ethnicity/ancestory and sex, but it can all be left blank."""
-    # check all that apply
-    male = models.NullBooleanField() # True=male, False=female, Null=not answered
+    life is their race/ethnicity/ancestory and sex, but it can all be left unknown."""
+
+    SEX_CHOICES = (
+            (None, 'Not Answered'),
+            (True, 'Male'),
+            (False, 'Female'),
+    (
+    is_male = models.NullBooleanField('sex', choices=SEX_CHOICES) 
+
     corporation = models.NullBooleanField()
     government_agency = models.NullBooleanField()
+
     hispanic_or_latino = models.NullBooleanField()
     white_or_caucasian = models.NullBooleanField()
     european = models.NullBooleanField()
