@@ -76,6 +76,7 @@ class Pet(models.Model):
     primary_breed = models.CharField(max_length=16)
     secondary_breed = models.CharField(max_length=16)
     breed_is_guess = models.BooleanField()
+    color = models.BooleanField(max_length=16)
     UNKNOWN = 'U'
     MALE = 'M'
     NEUTERED = 'N'
