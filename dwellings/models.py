@@ -258,4 +258,4 @@ class Conviction(models.Model):
     po = models.CharField(help_text='If currently on parole or probation, include \
             P.O. name and phone number.', blank=True, max_length=128)
 
-#Still need to define partner (spouse, domestic, business), child, relative, acquaintance, shareholder (owning part of a 'person' which is really a corporation), pet: name, breed, shots, license
+#Still need to define shareholder (owning part of a 'person' which is really a corporation)

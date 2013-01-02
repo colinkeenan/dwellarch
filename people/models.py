@@ -9,9 +9,10 @@ from django.db import models
 class Person(models.Model):
     """The purpose of this class is to supply an id for a person, corporation,  
     or government agency in the database.
-    The only thing I could think to track here that shouldn't change through
-    a person's life is their race/ethnicity/ancestory, but it can all be left blank."""
+    The only thing I could think to track here that shouldn't change through a person's 
+    life is their race/ethnicity/ancestory and sex, but it can all be left blank."""
     # check all that apply
+    male = models.NullBooleanField() # True=male, False=female, Null=not answered
     corporation = models.NullBooleanField()
     government_agency = models.NullBooleanField()
     hispanic_or_latino = models.NullBooleanField()
@@ -31,6 +32,15 @@ class Person(models.Model):
             distinguishing information for this person/corporation that should \
             not change with time.', max_length=256, blank=True)
 
+    def partners = models.ManyToManyField('self', through='Partnership')
+    def parents = models.ManyToManyField('self', symmetrical=False, 
+            through='Family', related_name='child')
+    def relatives = models.ManyToManyField('self')
+    def acquaintances = models.ManyToManyField('self')
+
+    def children(self):
+        return self.child_set
+
     def allCurrentNames(self, ondate=datetime.date.today()):
         """returns a list of name_changes where name_change was current 
         ondate (which defaults to today)"""
@@ -43,6 +53,43 @@ class Person(models.Model):
 
     def allNames(self):
         return self.name_change_set
+
+#Still need to define pet: name, breed, shots, license
+
+class Partnership(models.Model):
+    person1 = models.ForeignKey(Person)
+    person2 = models.ForeignKey(Person)
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True, default=Null)
+    
+    SPOUSE = 'S'
+    DOMESTIC = 'D'
+    BUSINESS = 'B'
+    HOW_RELATED_CHOICES = (
+            (SPOUSE, 'Spouse'),
+            (DOMESTIC, 'Domestic Partner'),
+            (BUSINESS, 'Business Partner'),
+    )
+
+    how_related = models.CharField(help_text='How is this person related?',
+            max_length=1, choices=HOW_RELATED_CHOICES, default=SPOUSE)
+
+class Family(models.Model):
+    parent = models.ForeignKey(Person)
+    child = models.ForeignKey(Person)
+    date = models.DateField(help_text='Date of parenthood or guardianship')
+    
+    MOTHER = 'M'
+    FATHER = 'F'
+    GUARDIAN = 'G'
+    PARENT_TYPE_CHOICES = (
+            (MOTHER, 'Mother'),
+            (FATHER, 'Father'),
+            (GUARDIAN, 'Legal Guardian'),
+    )
+
+    parent_type = models.CharField(help_text='What type of parent is this?',
+            max_length=1, choices=HOW_RELATED_CHOICES, default=GUARDIAN)
 
 class Nick(models.Model):
     """A person should only have one nickname at a time and then only as an easy
@@ -336,4 +383,4 @@ class URI(models.Model):
     type_of_data = models.CharField(help_text="For example: 'online profile', \
             'portrait', 'photo of face', 'scan of fingerprints'", 
             max_length = 32)
-   
+
