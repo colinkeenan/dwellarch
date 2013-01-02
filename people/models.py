@@ -12,6 +12,9 @@ class Person(models.Model):
     The only thing I could think to track here that shouldn't change through a person's 
     life is their race/ethnicity/ancestory and sex, but it can all be left unknown."""
 
+    corporation = models.NullBooleanField()
+    government_agency = models.NullBooleanField()
+
     NOT_ANSWERED = 'N'
     MALE = 'M'
     FEMALE = 'F'
@@ -19,11 +22,9 @@ class Person(models.Model):
             (NOT_ANSWERED, 'Not Answered'),
             (MALE, 'Male'),
             (FEMALE, 'Female'),
-    (
-    sex = models.CharField(max_length = 1, choices=SEX_CHOICES, default=NOT_ANSWERED) 
-
-    corporation = models.NullBooleanField()
-    government_agency = models.NullBooleanField()
+    )
+    sex = models.CharField(max_length = 1, choices=SEX_CHOICES, 
+        default=NOT_ANSWERED) 
 
     hispanic_or_latino = models.NullBooleanField()
     white_or_caucasian = models.NullBooleanField()
@@ -42,11 +43,11 @@ class Person(models.Model):
             distinguishing information for this person/corporation that should \
             not change with time.', max_length=256, blank=True)
 
-    def partners = models.ManyToManyField('self', through='Partnership')
-    def parents = models.ManyToManyField('self', symmetrical=False, 
-            through='Family', related_name='child')
-    def relatives = models.ManyToManyField('self')
-    def acquaintances = models.ManyToManyField('self')
+    partners = models.ManyToManyField('self', through='Partnership')
+    parents = models.ManyToManyField('self', symmetrical=False, 
+        through='Family', related_name='child')
+    relatives = models.ManyToManyField('self')
+    acquaintances = models.ManyToManyField('self')
 
     def children(self):
         return self.child_set
@@ -64,7 +65,34 @@ class Person(models.Model):
     def allNames(self):
         return self.name_change_set
 
-#Still need to define pet: name, breed, shots, license
+class Pet(models.Model):
+    owner = models.ForeignKey(Person)
+    species = models.CharField(max_length=16, 
+            help_text='Dog, Cat, Hampster, Parrot, Python...')
+    date = models.DateField(help_text='Date this pet was aquired')
+    birth_date = models.DateField(help_text='Guess if necessary')
+    birth_date_is_guess = models.BooleanField()
+    name = models.CharField(max_length=16)
+    primary_breed = models.CharField(max_length=16)
+    secondary_breed = models.CharField(max_length=16)
+    breed_is_guess = models.BooleanField()
+    UNKNOWN = 'U'
+    MALE = 'M'
+    NEUTERED = 'N'
+    FEMALE = 'F'
+    SPAYED = 'S'
+    SEX_CHOICES = (
+            (UNKNOWN, 'Unknown'),
+            (MALE, 'Male'),
+            (NEUTERED, 'Neutered (male)'),
+            (FEMALE, 'Female'),
+            (SPAYED, 'Spayed (female)'),
+    )
+    sex = models.CharField(max_length = 1, choices=SEX_CHOICES, 
+        default=UNKNOWN) 
+
+    def breed(self):
+        return '{}/{}'.format(primary_breed, secondary_breed)
 
 class Partnership(models.Model):
     person1 = models.ForeignKey(Person)

@@ -258,4 +258,19 @@ class Conviction(models.Model):
     po = models.CharField(help_text='If currently on parole or probation, include \
             P.O. name and phone number.', blank=True, max_length=128)
 
+class PetShots(models.Model):
+    pet = models.ForeignKey(people.Pet)
+    vet = models.ForeignKey(Occupant)
+    shot_name = models.CharField(max_length=16)
+    date = models.DateField()
+    expires = models.DateField()
+
+class PetLicense(models.Model):
+    pet = models.ForeignKey(people.Pet)
+    agency = models.ForeignKey('pet licensing agency', Occupant)
+    tag_number = models.CharField(max_length=16)
+    date = models.DateField()
+    expires = models.DateField()
+
+
 #Still need to define shareholder (owning part of a 'person' which is really a corporation)
