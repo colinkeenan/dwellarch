@@ -12,12 +12,15 @@ class Person(models.Model):
     The only thing I could think to track here that shouldn't change through a person's 
     life is their race/ethnicity/ancestory and sex, but it can all be left unknown."""
 
+    NOT_ANSWERED = 'N'
+    MALE = 'M'
+    FEMALE = 'F'
     SEX_CHOICES = (
-            (None, 'Not Answered'),
-            (True, 'Male'),
-            (False, 'Female'),
+            (NOT_ANSWERED, 'Not Answered'),
+            (MALE, 'Male'),
+            (FEMALE, 'Female'),
     (
-    is_male = models.NullBooleanField('sex', choices=SEX_CHOICES) 
+    sex = models.CharField(max_length = 1, choices=SEX_CHOICES, default=NOT_ANSWERED) 
 
     corporation = models.NullBooleanField()
     government_agency = models.NullBooleanField()
