@@ -48,6 +48,7 @@ class Person(models.Model):
         through='Family', related_name='child')
     relatives = models.ManyToManyField('self')
     acquaintances = models.ManyToManyField('self')
+    friends = models.ManyToManyField('self')
 
     def children(self):
         return self.child_set
@@ -91,6 +92,8 @@ class Pet(models.Model):
     )
     sex = models.CharField(max_length = 1, choices=SEX_CHOICES, 
         default=UNKNOWN) 
+    info = models.CharField(help_text='Other information about \
+            this pet', max_length=64)
 
     def breed(self):
         return '{}/{}'.format(primary_breed, secondary_breed)
@@ -104,14 +107,18 @@ class Partnership(models.Model):
     SPOUSE = 'S'
     DOMESTIC = 'D'
     BUSINESS = 'B'
+    OTHER = 'O'
     HOW_RELATED_CHOICES = (
             (SPOUSE, 'Spouse'),
             (DOMESTIC, 'Domestic Partner'),
             (BUSINESS, 'Business Partner'),
+            (OTHER, 'Other'),
     )
 
     how_related = models.CharField(help_text='How is this person related?',
             max_length=1, choices=HOW_RELATED_CHOICES, default=SPOUSE)
+    info = models.CharField(help_text='Additional information about this \
+            partnership', max_length=64)
 
 class Family(models.Model):
     parent = models.ForeignKey(Person)
@@ -121,14 +128,18 @@ class Family(models.Model):
     MOTHER = 'M'
     FATHER = 'F'
     GUARDIAN = 'G'
+    OTHER = 'O'
     PARENT_TYPE_CHOICES = (
             (MOTHER, 'Mother'),
             (FATHER, 'Father'),
             (GUARDIAN, 'Legal Guardian'),
+            (OTHER, 'Other'),
     )
 
     parent_type = models.CharField(help_text='What type of parent is this?',
             max_length=1, choices=HOW_RELATED_CHOICES, default=GUARDIAN)
+    info = models.CharField(help_text='Other relevant information',
+            max_length=64)
 
 class Nick(models.Model):
     """A person should only have one nickname at a time and then only as an easy

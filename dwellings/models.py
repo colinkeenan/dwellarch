@@ -258,10 +258,19 @@ class Conviction(models.Model):
     po = models.CharField(help_text='If currently on parole or probation, include \
             P.O. name and phone number.', blank=True, max_length=128)
 
+class Immunization(models.Model):
+    occupant = models.ForeignKey(Occupant)
+    doctor = models.ForeignKey(Occupant, blank=True, null=True, default=None)
+    shot_name = models.CharField(max_length=16)
+    date = models.DateField()
+    expires = models.DateField()
+
 class PetShots(models.Model):
     pet = models.ForeignKey(people.Pet)
     vet = models.ForeignKey(Occupant)
     shot_name = models.CharField(max_length=16)
+    tag_number = models.CharField(max_length=16, help_text='Enter the number \
+    from the tag associated with this shot, if there is a tag.', blank=True)
     date = models.DateField()
     expires = models.DateField()
 
