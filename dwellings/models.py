@@ -52,8 +52,9 @@ class Occupant(models.Model): # everone in the database is an occupant if have t
     person = models.ForeignKey(people.Person) # can be a corporation or government agency
     units = models.ManyToManyField(Unit, through='OccupantTransfers', 
             null=True, blank=True, default=None) # history of dwellings for this occupant
-    corporation = models.ManyToManyField('self', symmetrical=False, 
-        through='ShareCertificates', related_name='shareholder')
+    corporations = models.ManyToManyField('self', symmetrical=False, 
+        through='ShareTransfer', related_name='shareholder') \
+                # corporations this occupant has ever owned a share of
 
     def shareholders(self):
         return self.shareholder_set
