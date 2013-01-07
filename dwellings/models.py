@@ -52,11 +52,27 @@ class Occupant(models.Model): # everone in the database is an occupant if have t
     person = models.ForeignKey(people.Person) # can be a corporation or government agency
     units = models.ManyToManyField(Unit, through='OccupantTransfers', 
             null=True, blank=True, default=None) # history of dwellings for this occupant
+    corporation = models.ManyToManyField('self', symmetrical=False, 
+        through='ShareCertificates', related_name='shareholder')
+
+    def shareholders(self):
+        return self.shareholder_set
+
+    def total_shares(self):
+        total = 0
+        for shareholder in self.shareholders():
+            total += shareholder.share_transfer__shares
+        return total
+
+    def shares_owned(self, corp):
+        owned = 0
+        for transfer in self.share_transfer_set.filter(corporation = corp):
+            owned += transfer__shares
+        return owned
     
     def full_address(self):
         """Returns a dictionary of this occupant's personal street address, unit, city, 
-        state, and zip, and comes from the latest OccupantTransfers that matches the 
-        person foreign key."""
+        state, and zip, and comes from the latest OccupantTransfers for this occupant"""
         return self.occupant_transfers_set.latest().full_address()
 
 class Owner(models.Model):
@@ -281,5 +297,18 @@ class PetLicense(models.Model):
     date = models.DateField()
     expires = models.DateField()
 
+class ShareTransfer(models.Model):
+    """This is just to keep track of all the owners (shareholders) of a 
+    corporation. In general, neither the dwelarch project, nor this 
+    dwellings application, should be used for tracking financial details 
+    of a corporation"""
+    shareholder = models.ForeignKey(Occupant)
+    corporation = models.ForeignKey(Occupant)
+    transfer_date = models.DateField()
+    shares_transfered = models.IntegerField(help_text='Enter a positive \
+            number for shares purchased, and a negative number for \
+            shares sold')
 
-#Still need to define shareholder (owning part of a 'person' which is really a corporation)
+    class Meta: 
+        get_latest_by = 'purchase_date'
+        ordering = ['-date'] 
