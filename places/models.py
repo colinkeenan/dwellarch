@@ -16,7 +16,9 @@ class Estate(models.Model):
 
 class Building(models.Model):
     estate = models.ForeignKey(Estate)
-    date = models.DateField('date of construction')
+    date = models.DateField('date of construction', 
+            help_text='Enter date of construction if known',
+            blank=True, null=True, default=None)
     building_area = models.CharField(max_length=16, blank=True)
     bedrooms = models.IntegerField(blank=True)
     bathrooms = models.IntegerField(blank=True)
@@ -34,5 +36,7 @@ class Building(models.Model):
 
 class BuildingName(models.Model):
     building = models.ForeignKey(Building)
-    date = models.DateField('name-assignment date')
+    date = models.DateField('date of name-assignment',
+            help_text='Enter the date this name was assigned if known',
+            blank=True, null=True, default=None)
     name = models.CharField('building name', max_length=64)
